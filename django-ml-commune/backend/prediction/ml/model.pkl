@@ -1,0 +1,4 @@
+# The file /django-ml-commune/django-ml-commune/backend/prediction/ml/model.pkl is a binary file that cannot be represented as text. 
+# It should contain the serialized machine learning model, which is typically created using libraries like scikit-learn.
+# You can generate this file by running the training script that saves the model after training. 
+# Therefore, this file is intentionally left blank.

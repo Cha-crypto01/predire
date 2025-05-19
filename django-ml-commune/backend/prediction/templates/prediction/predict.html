@@ -1,0 +1,547 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prédiction Recettes/Dépenses Commune</title>
+    <link rel="stylesheet" href="{% static 'prediction/styles.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+    <style>
+        /* Styles spécifiques pour les améliorations */
+        .logo-container {
+            position: relative;
+            animation: logoFloat 3s ease-in-out infinite;
+        }
+        
+        @keyframes logoFloat {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .form-container {
+            position: relative;
+        }
+        
+        .input-group {
+            position: relative;
+            margin-bottom: 25px;
+        }
+        
+        .input-group input,
+        .input-group select {
+            margin-bottom: 0;
+        }
+        
+        .floating-label {
+            position: absolute;
+            left: 15px;
+            top: 12px;
+            transition: all 0.3s ease;
+            pointer-events: none;
+            background: white;
+            padding: 0 5px;
+            color: #636e72;
+            font-size: 1em;
+        }
+        
+        .input-group input:focus + .floating-label,
+        .input-group input:not(:placeholder-shown) + .floating-label,
+        .input-group select:focus + .floating-label,
+        .input-group select:not([value=""]) + .floating-label {
+            transform: translateY(-25px) scale(0.85);
+            color: #0984e3;
+        }
+        
+        #result {
+            min-height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        
+        #result.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(9, 132, 227, 0.3);
+            border-radius: 50%;
+            border-top-color: #0984e3;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 10px;
+        }
+        
+        .chart-container {
+            position: relative;
+            opacity: 0;
+            transform: scale(0.9);
+            transition: all 0.6s ease;
+            margin: 30px auto;
+            max-width: 800px;
+        }
+        
+        .chart-container.show {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        .success-animation {
+            animation: successPulse 0.6s ease-out;
+        }
+        
+        @keyframes successPulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+            100% { transform: scale(1); }
+        }
+        
+        .error-shake {
+            animation: errorShake 0.5s ease-in-out;
+        }
+        
+        @keyframes errorShake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.5s ease;
+        }
+        
+        .stats-grid.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(44,62,80,0.08);
+            text-align: center;
+            transition: all 0.3s ease;
+            border-left: 4px solid transparent;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(44,62,80,0.12);
+        }
+        
+        .stat-card.recettes {
+            border-left-color: #4caf50;
+        }
+        
+        .stat-card.depenses {
+            border-left-color: #f44336;
+        }
+        
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .stat-label {
+            font-size: 0.9em;
+            color: #636e72;
+        }
+        
+        .chart-legend {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin: 15px 0;
+            font-size: 0.9em;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 3px;
+        }
+        
+        .prediction-badge {
+            background: linear-gradient(135deg, #0984e3, #74b9ff);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            margin-left: 10px;
+            animation: fadeInUp 0.5s ease-out;
+        }
+        
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .chart-legend {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{% static 'prediction/logo2.png' %}" alt="Logo" style="display:block;margin:30px auto 10px auto;width:80px;">
+    </div>
+    
+    <h1>Prédiction Financière</h1>
+    <h2>Recettes et dépenses communales</h2>
+    
+    <div class="form-container">
+        <form id="predict-form">
+            <div class="input-group">
+                <select id="commune" name="commune" required>
+                    <option value="">--Choisir une commune--</option>
+                    {% for c in communes %}
+                        <option value="{{ c }}">{{ c }}</option>
+                    {% endfor %}
+                </select>
+                <label for="commune" class="floating-label">Commune</label>
+            </div>
+            
+            <div class="input-group">
+                <input type="number" id="annee" name="annee" required placeholder=" ">
+                <label for="annee" class="floating-label">Année</label>
+            </div>
+            
+            <button type="submit" id="predict-btn">
+                <span>Prédire</span>
+            </button>
+        </form>
+    </div>
+    
+    <div id="result"></div>
+    
+    <div id="stats-container" class="stats-grid">
+        <div class="stat-card recettes">
+            <div class="stat-value" id="recettes-value">-</div>
+            <div class="stat-label">Recettes prévues (M€)</div>
+        </div>
+        <div class="stat-card depenses">
+            <div class="stat-value" id="depenses-value">-</div>
+            <div class="stat-label">Dépenses prévues (M€)</div>
+        </div>
+    </div>
+    
+    <div id="chart-container" class="chart-container">
+        <div class="chart-legend">
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #4caf50;"></div>
+                <span>Recettes historiques</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #f44336;"></div>
+                <span>Dépenses historiques</span>
+            </div>
+        </div>
+        <canvas id="chart" width="600" height="300"></canvas>
+    </div>
+
+    <script>
+    // Historique des communes (injecté par Django)
+    const historique = JSON.parse('{{ historique_json|escapejs }}');
+    let chart = null;
+    let currentPrediction = null;
+
+    // Animation d'entrée pour les éléments
+    function animateElement(element, className = 'show') {
+        element.classList.add(className);
+    }
+
+    // Fonction pour afficher le spinner de chargement
+    function showLoading() {
+        const resultDiv = document.getElementById('result');
+        resultDiv.innerHTML = '<div class="loading-spinner"></div>Analyse en cours...';
+        animateElement(resultDiv, 'show');
+    }
+
+    // Fonction pour afficher les résultats avec animation
+    function showResult(data, isError = false) {
+        const resultDiv = document.getElementById('result');
+        const statsContainer = document.getElementById('stats-container');
+        
+        if (isError) {
+            resultDiv.innerHTML = `<span style="color:#f44336">${data}</span>`;
+            resultDiv.classList.add('error-shake');
+            setTimeout(() => resultDiv.classList.remove('error-shake'), 500);
+            statsContainer.classList.remove('show');
+        } else {
+            resultDiv.innerHTML = `
+                <div style="color:#00b894">
+                    <strong>✓ Prédiction calculée avec succès</strong>
+                    <span class="prediction-badge">Année ${data.annee}</span>
+                </div>
+            `;
+            resultDiv.classList.add('success-animation');
+            setTimeout(() => resultDiv.classList.remove('success-animation'), 600);
+            
+            // Mise à jour des cartes statistiques
+            document.getElementById('recettes-value').textContent = data.recettes;
+            document.getElementById('depenses-value').textContent = data.depenses;
+            animateElement(statsContainer);
+        }
+        
+        animateElement(resultDiv);
+    }
+
+    // Fonction améliorée pour le graphique
+    function updateChart(commune, prediction) {
+        const chartContainer = document.getElementById('chart-container');
+        const chartCanvas = document.getElementById('chart');
+        
+        // Récupère l'historique
+        const hist = historique[commune] || [];
+        const annees = hist.map(r => r['Année']);
+        const recettes = hist.map(r => r['Recettes (M€)']);
+        const depenses = hist.map(r => r['Dépenses (M€)']);
+        
+        // Sépare les données historiques et prédictives
+        let recettesHist = [...recettes];
+        let depensesHist = [...depenses];
+        let recettesPred = [];
+        let depensesPred = [];
+        let anneesPred = [];
+        
+        if (prediction) {
+            anneesPred = [prediction.annee];
+            recettesPred = [prediction.recettes];
+            depensesPred = [prediction.depenses];
+            
+            // Connecte la prédiction au dernier point historique
+            if (annees.length > 0) {
+                recettesPred.unshift(recettes[recettes.length - 1]);
+                depensesPred.unshift(depenses[depenses.length - 1]);
+                anneesPred.unshift(annees[annees.length - 1]);
+            }
+        }
+        
+        // Détruit le graphique existant
+        if (chart) chart.destroy();
+        
+        // Crée le nouveau graphique avec animations
+        chart = new Chart(chartCanvas, {
+            type: 'line',
+            data: {
+                labels: [...annees, ...anneesPred.slice(1)],
+                datasets: [
+                    {
+                        label: 'Recettes historiques (M€)',
+                        data: recettesHist,
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76,175,80,0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBorderColor: '#4caf50',
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Dépenses historiques (M€)',
+                        data: depensesHist,
+                        borderColor: '#f44336',
+                        backgroundColor: 'rgba(244,67,54,0.1)',
+                        fill: false,
+                        tension: 0.3,
+                        pointRadius: 5,
+                        pointHoverRadius: 8,
+                        pointBorderColor: '#f44336',
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Recettes prédites (M€)',
+                        data: Array(annees.length).fill(null).concat(recettesPred.slice(1)),
+                        borderColor: '#4caf50',
+                        backgroundColor: 'rgba(76,175,80,0.2)',
+                        fill: false,
+                        tension: 0.3,
+                        borderDash: [5, 5],
+                        pointRadius: 6,
+                        pointHoverRadius: 10,
+                        pointBorderColor: '#4caf50',
+                        pointBackgroundColor: '#4caf50',
+                        pointBorderWidth: 2
+                    },
+                    {
+                        label: 'Dépenses prédites (M€)',
+                        data: Array(annees.length).fill(null).concat(depensesPred.slice(1)),
+                        borderColor: '#f44336',
+                        backgroundColor: 'rgba(244,67,54,0.2)',
+                        fill: false,
+                        tension: 0.3,
+                        borderDash: [5, 5],
+                        pointRadius: 6,
+                        pointHoverRadius: 10,
+                        pointBorderColor: '#f44336',
+                        pointBackgroundColor: '#f44336',
+                        pointBorderWidth: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 1000,
+                    easing: 'easeInOutQuart'
+                },
+                scales: {
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Année',
+                            font: { weight: 'bold' }
+                        },
+                        grid: {
+                            color: 'rgba(44,62,80,0.1)'
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Montant (M€)',
+                            font: { weight: 'bold' }
+                        },
+                        grid: {
+                            color: 'rgba(44,62,80,0.1)'
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false // Utilise notre légende personnalisée
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: 'rgba(255,255,255,0.95)',
+                        titleColor: '#2d3436',
+                        bodyColor: '#636e72',
+                        borderColor: '#dfe6e9',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        displayColors: true
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            }
+        });
+        
+        animateElement(chartContainer);
+    }
+
+    // Gestionnaire du formulaire avec animations améliorées
+    document.getElementById('predict-form').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const commune = document.getElementById('commune').value;
+        const annee = parseInt(document.getElementById('annee').value);
+        const button = document.getElementById('predict-btn');
+        
+        // Animation du bouton
+        button.style.transform = 'scale(0.95)';
+        setTimeout(() => button.style.transform = 'scale(1)', 100);
+        
+        showLoading();
+        
+        try {
+            const response = await fetch('/api/predict/', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({commune, annee})
+            });
+            
+            const data = await response.json();
+            
+            if (response.ok) {
+                currentPrediction = {annee, recettes: data.recettes, depenses: data.depenses};
+                showResult(currentPrediction);
+                updateChart(commune, currentPrediction);
+            } else {
+                showResult(data.error || "Erreur lors de la prédiction", true);
+            }
+        } catch (err) {
+            showResult("Erreur de connexion au serveur", true);
+        }
+    });
+
+    // Gestionnaire du changement de commune avec animation
+    document.getElementById('commune').addEventListener('change', function() {
+        const commune = this.value;
+        const statsContainer = document.getElementById('stats-container');
+        const chartContainer = document.getElementById('chart-container');
+        
+        if (commune) {
+            updateChart(commune, null);
+            currentPrediction = null;
+            
+            // Reset des statistiques
+            document.getElementById('recettes-value').textContent = '-';
+            document.getElementById('depenses-value').textContent = '-';
+            statsContainer.classList.remove('show');
+        } else {
+            if (chart) chart.destroy();
+            chartContainer.classList.remove('show');
+            statsContainer.classList.remove('show');
+        }
+        
+        // Clear result
+        const resultDiv = document.getElementById('result');
+        resultDiv.classList.remove('show');
+        setTimeout(() => resultDiv.innerHTML = '', 300);
+    });
+
+    // Animation d'entrée au chargement de la page
+    window.addEventListener('load', function() {
+        const elements = document.querySelectorAll('h1, h2, form, footer');
+        elements.forEach((el, index) => {
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(20px)';
+                el.style.transition = 'all 0.6s ease';
+                el.style.opacity = '1';
+                el.style.transform = 'translateY(0)';
+            }, index * 100);
+        });
+    });
+    </script>
+    
+    <footer>
+        &copy; 2025 Prédiction Commune - Intelligence Artificielle
+    </footer>
+</body>
+</html>

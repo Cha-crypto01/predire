@@ -1,0 +1,23 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Accueil - Prédiction Commune</title>
+    <link rel="stylesheet" href="{% static 'prediction/styles.css' %}">
+</head>
+<body>
+    <div class="logo-container">
+        <img src="{% static 'prediction/logo2.png' %}" alt="Logo" style="display:block;margin:30px auto 10px auto;width:80px;">
+    </div>
+    <h1>Bienvenue sur l’application de prédiction des recettes et dépenses d’une commune</h1>
+    <ul>
+        <li><a href="/api/form/">Formulaire de prédiction (Django)</a></li>
+    
+        <li><a href="/api/predict/">API REST (POST uniquement)</a></li>
+    </ul>
+    <footer>
+        &copy; 2025 Prédiction Commune
+    </footer>
+</body>
+</html>
