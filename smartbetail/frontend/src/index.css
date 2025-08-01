@@ -1,0 +1,72 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Styles personnalisés pour SmartBétail */
+@layer base {
+  html {
+    @apply h-full;
+  }
+  
+  body {
+    @apply h-full bg-gray-50 text-gray-900 font-sans;
+  }
+  
+  #root {
+    @apply h-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-smart-blue-600 hover:bg-smart-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-secondary {
+    @apply bg-gray-600 hover:bg-gray-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-success {
+    @apply bg-smart-green-600 hover:bg-smart-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200;
+  }
+  
+  .card {
+    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+  }
+  
+  .form-input {
+    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-smart-blue-500 focus:ring-smart-blue-500;
+  }
+  
+  .form-select {
+    @apply block w-full rounded-md border-gray-300 shadow-sm focus:border-smart-blue-500 focus:ring-smart-blue-500;
+  }
+  
+  .badge {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+  }
+  
+  .badge-green {
+    @apply bg-smart-green-100 text-smart-green-800;
+  }
+  
+  .badge-blue {
+    @apply bg-smart-blue-100 text-smart-blue-800;
+  }
+  
+  .badge-yellow {
+    @apply bg-yellow-100 text-yellow-800;
+  }
+  
+  .badge-red {
+    @apply bg-red-100 text-red-800;
+  }
+  
+  .badge-gray {
+    @apply bg-gray-100 text-gray-800;
+  }
+}
